@@ -4,21 +4,12 @@ from tkinter import ttk
 
 class TimeclockApp():
     def __init__(self):
-        dbConnection = mysql.connector.connect(
+        self.dbConnection = mysql.connector.connect(
             host="localhost",
             user="root",
             password="Password123",
             database="timeclockdb"
         )
-
-        cursor = dbConnection.cursor()
-
-        cursor.execute("SELECT * FROM employees")
-        results = cursor.fetchall()
-        print(results)
-        
-        print("test")
-
 
         self.root = tk.Tk()
 
@@ -78,8 +69,11 @@ class TimeclockApp():
         btn0 = ttk.Button(btnframe, text="0", command=lambda: self.add_input(btn0))
         btn0.grid(row=3, column=0, columnspan=2, sticky=tk.NSEW)
 
-        backBtn = ttk.Button(btnframe, text="\u2190", command=self.backspaceInt)
+        backBtn = ttk.Button(btnframe, text="\u2190", command=self.backspace_int)
         backBtn.grid(row=3, column=2, sticky=tk.NSEW)
+
+        enterBtn = ttk.Button(btnframe, text="Submit", command=lambda: self.submit_btn(enterBtn))
+        enterBtn.grid(row=4, column=0, columnspan=3, sticky=tk.NSEW)
 
         self.root.mainloop()
         return
@@ -90,22 +84,43 @@ class TimeclockApp():
         newText = oldText + passedText
 
         if len(newText) > 4:
-            #if newText == user's pin
-                #go to user's page
-            
-            #if newText == admin's pin
-                #go to admin's page
             return
 
         self.txtbox1.delete(0,tk.END)
         self.txtbox1.insert(0,newText)
     
-    def backspaceInt(self):
+    def backspace_int(self):
         oldText = self.txtbox1.get()
         newText = oldText[:-1]
 
         self.txtbox1.delete(0, tk.END)
         self.txtbox1.insert(0, newText)
         
+    def submit_btn(self, btn):
+        pin = self.txtbox1.get()
 
+        self.cursor = self.dbConnection.cursor()
+        self.cursor.execute("SELECT employee_pin FROM employees")
+        result = self.cursor.fetchall()
+
+        if len(pin) == 4:
+            i = 0
+
+
+            for x in result:
+                if int(pin) == x[-1]:
+                    self.cursor.execute("SELECT admin FROM employees WHERE employee_pin = " + str(x[-1]))
+                    pinResult = self.cursor.fetchall()
+
+                    for y in pinResult:
+                        if y[-1] == 1:
+                            print("admin")
+                        elif y[-1] == 0:
+                            print("user")
+                        else:
+                            print("invalid")
+                            return
+            #if newText == admin's pin
+                #go to admin's page
+            return
 start = TimeclockApp()
