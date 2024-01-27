@@ -17,6 +17,7 @@ class TimeclockApp():
         results = cursor.fetchall()
         print(results)
         
+        print("test")
 
 
         self.root = tk.Tk()
