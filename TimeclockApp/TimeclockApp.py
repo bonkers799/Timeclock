@@ -1,6 +1,8 @@
 import tkinter as tk
 import mysql.connector
 from tkinter import ttk
+from UserPage import UserWindow
+from AdminPage import AdminWindow
 
 class TimeclockApp():
     def __init__(self):
@@ -23,7 +25,7 @@ class TimeclockApp():
         self.txtbox1 = ttk.Entry(self.root, font=("Cooper Black", 16), justify="center", width=6)
         self.txtbox1.pack(padx=20, pady=20)
 
-        btnframe = tk.Frame(self.root, width=500, height=500)
+        btnframe = tk.Frame(self.root, width=500, height=550)
         btnframe.columnconfigure(0, weight=1)
         btnframe.columnconfigure(1, weight=1)
         btnframe.columnconfigure(2, weight=1)
@@ -36,7 +38,7 @@ class TimeclockApp():
         #for later styling possibilities
         
         sty = ttk.Style()
-        sty.configure("TButton", font=("Cooper Black", 15))
+        sty.configure("TButton", font=("Cooper Black", 15), padding=(0,-2))
 
 
         btn1 = ttk.Button(btnframe, text="1", command=lambda: self.add_input(btn1))
@@ -72,7 +74,7 @@ class TimeclockApp():
         backBtn = ttk.Button(btnframe, text="\u2190", command=self.backspace_int)
         backBtn.grid(row=3, column=2, sticky=tk.NSEW)
 
-        enterBtn = ttk.Button(btnframe, text="Submit", command=lambda: self.submit_btn(enterBtn))
+        enterBtn = ttk.Button(btnframe, text="Submit", command=self.submit_btn)
         enterBtn.grid(row=4, column=0, columnspan=3, sticky=tk.NSEW)
 
         self.root.mainloop()
@@ -96,7 +98,7 @@ class TimeclockApp():
         self.txtbox1.delete(0, tk.END)
         self.txtbox1.insert(0, newText)
         
-    def submit_btn(self, btn):
+    def submit_btn(self):
         pin = self.txtbox1.get()
 
         self.cursor = self.dbConnection.cursor()
@@ -114,9 +116,11 @@ class TimeclockApp():
 
                     for y in pinResult:
                         if y[-1] == 1:
-                            print("admin")
+                            adminClass = AdminWindow(self.root)
+                            adminClass.admin_page()
                         elif y[-1] == 0:
-                            print("user")
+                            userClass = UserWindow(self.root)
+                            userClass.user_page()
                         else:
                             print("invalid")
                             return
