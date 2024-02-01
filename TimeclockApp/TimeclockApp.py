@@ -20,25 +20,28 @@ class TimeclockApp():
         
         
         label1 = tk.Label(self.root, text="Time Clock", font=("Cooper Black", 48), justify="center")
-        label1.pack(padx=20, pady=100)
+        label1.pack(side="top", padx=20, pady=50)
 
-        self.txtbox1 = ttk.Entry(self.root, font=("Cooper Black", 16), justify="center", width=6)
-        self.txtbox1.pack(padx=20, pady=20)
+        self.txtboxFrame = tk.Frame(self.root, width=600, height=100)
+        self.txtboxFrame.pack(padx=20, pady=20)
+        self.txtboxFrame.pack_propagate(False)
 
-        btnframe = tk.Frame(self.root, width=500, height=550)
-        btnframe.columnconfigure(0, weight=1)
+        self.txtbox1 = ttk.Entry(self.txtboxFrame, font=("Cooper Black", 16), justify="center", width=6)
+        self.txtbox1.pack(pady=20)
+
+        btnframe = tk.Frame(self.root, width=200, height=300)
         btnframe.columnconfigure(1, weight=1)
         btnframe.columnconfigure(2, weight=1)
         btnframe.rowconfigure(0, weight=1)
         btnframe.rowconfigure(1, weight=1)
         btnframe.rowconfigure(2, weight=1)
         btnframe.rowconfigure(3, weight=1)
-        btnframe.pack(padx=20, pady=50, ipadx=150, ipady=250)
+        btnframe.pack(side="bottom", padx=20, pady=10)
+        btnframe.pack_propagate(False)
         
         #for later styling possibilities
-        
-        sty = ttk.Style()
-        sty.configure("TButton", font=("Cooper Black", 15), padding=(0,-2))
+        self.sty = ttk.Style()
+        self.sty.configure("TButton", font=("Cooper Black", 15), padding=(25,10))
 
 
         btn1 = ttk.Button(btnframe, text="1", command=lambda: self.add_input(btn1))
@@ -74,8 +77,8 @@ class TimeclockApp():
         backBtn = ttk.Button(btnframe, text="\u2190", command=self.backspace_int)
         backBtn.grid(row=3, column=2, sticky=tk.NSEW)
 
-        enterBtn = ttk.Button(btnframe, text="Submit", command=self.submit_btn)
-        enterBtn.grid(row=4, column=0, columnspan=3, sticky=tk.NSEW)
+        submitBtn = ttk.Button(btnframe, text="Submit", command=self.submit_btn)
+        submitBtn.grid(row=4, column=0, columnspan=3, sticky=tk.NSEW)
 
         self.root.mainloop()
         return
@@ -121,10 +124,11 @@ class TimeclockApp():
                         elif y[-1] == 0:
                             userClass = UserWindow(self.root)
                             userClass.user_page()
-                        else:
-                            print("invalid")
-                            return
-            #if newText == admin's pin
-                #go to admin's page
+                if x == result[-1]:
+                        invalidLabel = tk.Label(self.txtboxFrame, text="Invalid Pin", font=("Cooper Black", 16), justify="center")
+                        invalidLabel.pack(padx=20)
+                        return
             return
+            
+                     
 start = TimeclockApp()
