@@ -8,6 +8,13 @@ class UserWindow:
         self.user_page()
 
     def user_page(self):
+        self.dbConnection = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="Password123",
+            database="timeclockdb"
+        )
+
         for widget in self.master.winfo_children():
             widget.destroy()
 
