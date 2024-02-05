@@ -109,10 +109,10 @@ class TimeclockApp():
         result = self.cursor.fetchall()
 
         if len(pin) == 4:
-            i = 0
-
-
             for x in result:
+                print(x)
+                userPin = x
+                print(userPin)
                 if int(pin) == x[-1]:
                     self.cursor.execute("SELECT admin FROM employees WHERE employee_pin = " + str(x[-1]))
                     pinResult = self.cursor.fetchall()
@@ -121,14 +121,26 @@ class TimeclockApp():
                         if y[-1] == 1:
                             adminClass = AdminWindow(self.root)
                             adminClass.admin_page()
+                            return
                         elif y[-1] == 0:
                             userClass = UserWindow(self.root)
-                            userClass.user_page()
+                            userClass.user_page(userPin)
+                            return
                 if x == result[-1]:
+                        
+                        for widget in self.root.winfo_children():
+                            if isinstance(widget, tk.Label) and widget.cget("text") == "Invalid Pin":
+                                widget.destroy()
+                        
                         invalidLabel = tk.Label(self.txtboxFrame, text="Invalid Pin", font=("Cooper Black", 16), justify="center")
                         invalidLabel.pack(padx=20)
                         return
             return
-            
+        else:
+            for widget in self.root.winfo_children():
+                if isinstance(widget, tk.Label) and widget.cget("text") == "Invalid Pin":
+                    widget.destroy()
+            invalidLabel = tk.Label(self.txtboxFrame, text="Invalid Pin", font=("Cooper Black", 16), justify="center")
+            invalidLabel.pack(padx=20)   
                      
 start = TimeclockApp()
