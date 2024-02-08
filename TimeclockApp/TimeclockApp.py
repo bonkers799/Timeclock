@@ -110,9 +110,7 @@ class TimeclockApp():
 
         if len(pin) == 4:
             for x in result:
-                print(x)
                 userPin = x
-                print(userPin)
                 if int(pin) == x[-1]:
                     self.cursor.execute("SELECT admin FROM employees WHERE employee_pin = " + str(x[-1]))
                     pinResult = self.cursor.fetchall()

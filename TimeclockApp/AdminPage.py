@@ -64,13 +64,15 @@ class AdminWindow:
         
         result = self.cursor.fetchall()
 
+        invalidUser = 0
         for i in result:
             if name == i[1] + " " + i[2]:
                 pin = i[0]
                 self.show_hours(name, pin)
-            if i == result[-1]:
+
+            if i == result[-1] and invalidUser == 1:
                 self.deleteWindow = tk.Tk()
-                self.deleteWindow.title("user Could Not Be Found")
+                self.deleteWindow.title("User Could Not Be Found")
                 self.deleteWindow.geometry('400x200')
 
                 label = tk.Label(self.deleteWindow, text="User Could Not Be Found", font=("Cooper Black", 18), justify="center")

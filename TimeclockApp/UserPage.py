@@ -47,10 +47,23 @@ class UserWindow:
 
         date = d.strftime("%m/%d/%y")
         clockIn = hr.strftime("%H") + ":" + min.strftime("%M") + ":" + sec.strftime("%S")
-        query = "INSERT INTO time (date, clock_in) VALUES (" + date + ", " + clockIn + ") WHERE employee_pin=" + pinFinal
 
-        print("SQL Query: " + query)
-        #self.cursor.execute(query)
+        
+        fetchPin = "SELECT * FROM time WHERE employee_pin=" + pinFinal
+        self.cursor.execute(fetchPin)
+        invalidPin = self.cursor.fetchone()
+
+
+
+        if invalidPin:
+            query = "UPDATE time SET date=" + date + ", clock_in=" + clockIn + " WHERE employee_pin=" + pinFinal
+            print("SQL Query: " + query)
+            #self.cursor.execute(query)
+        else:
+            print("Failed to clock in")
+
+        
+        
 
     def clock_out(self, pin):
         d = datetime.today()
@@ -61,9 +74,18 @@ class UserWindow:
         pinTemp = str(pin)
         pinFinal = pinTemp[1:5]
 
+        #use date variable to ensure there is a clock in entry
         date = d.strftime("%m/%d/%y")
         clockOut = hr.strftime("%H") + ":" + min.strftime("%M") + ":" + sec.strftime("%S")
-        query = "INSERT INTO time (date, clock_out) VALUES (" + date + ", " + clockOut + ") WHERE employee_pin=" + pinFinal
 
-        print("SQL Query: " + query)
-        #self.cursor.execute(query)
+        fetchPin = "SELECT * FROM time WHERE employee_pin=" + pinFinal
+        self.cursor.execute(fetchPin)
+        invalidPin = self.cursor.fetchone()
+
+
+        if invalidPin:
+            query = "UPDATE time SET clock_out=" + clockOut + " WHERE employee_pin=" + pinFinal
+            print("SQL Query: " + query)
+            #self.cursor.execute(query)
+        else:
+            print("Failed to clock out")
