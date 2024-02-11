@@ -1,6 +1,7 @@
 import tkinter as tk
 import mysql.connector
 from tkinter import ttk
+from datetime import datetime, timedelta, time
 
 class AdminWindow:
     def __init__(self, root):
@@ -42,34 +43,40 @@ class AdminWindow:
         btnframe.rowconfigure(1, weight=1)
         btnframe.pack(padx=20, pady=10, ipadx=50, ipady=50)
 
-
-        #fix formatting
-        weeklybtn = ttk.Button(btnframe, text="Get Weekly Hours", command=self.weekly_hours)
+        self.sty = ttk.Style()
+        self.sty.configure("AdminPage.TButton", font=("Cooper Black", 15), padding=(5,10))
+        
+        weeklybtn = ttk.Button(btnframe, text="Get Weekly Hours", style="AdminPage.TButton", command=self.weekly_hours)
         weeklybtn.grid(row=0, column=2, columnspan=2, sticky=tk.NSEW, padx=15)
 
-        createUser = ttk.Button(btnframe, text="Create User", command=self.create_user)
+        createUser = ttk.Button(btnframe, text="Create User", style="AdminPage.TButton", command=self.create_user)
         createUser.grid(row=1, column=0, columnspan=2, sticky=tk.NSEW, padx=15, ipadx=5)
 
-        deleteUser = ttk.Button(btnframe, text="Delete User", command=self.delete_user)
+        deleteUser = ttk.Button(btnframe, text="Delete User", style="AdminPage.TButton", command=self.delete_user)
         deleteUser.grid(row=1, column=4, columnspan=2, sticky=tk.NSEW, padx=15, ipadx=5)
     
     def summary_report(self):
         print("Get Summary Report")
 
+    #method used when the user clicks get weekly hours
     def weekly_hours(self):
+        week = 0
         name = self.txtbox.get()
 
+        #sql query to get first and last name as well as the pin from the textbox
         self.cursor = self.dbConnection.cursor()
         self.cursor.execute("SELECT employee_pin, first_name, last_name FROM employees")
-        
         result = self.cursor.fetchall()
 
+        #checks to see if the user exists in the database
         invalidUser = 0
         for i in result:
+            #if true call show_hours()
             if name == i[1] + " " + i[2]:
                 pin = i[0]
-                self.show_hours(name, pin)
+                self.show_hours(name, pin, week)
 
+            #otherwisee display a window showing invalid name
             if i == result[-1] and invalidUser == 1:
                 self.deleteWindow = tk.Tk()
                 self.deleteWindow.title("User Could Not Be Found")
@@ -81,20 +88,296 @@ class AdminWindow:
 
 
     #will add onto this, incomplete
-    def show_hours(self, name, pin):
-
+    def show_hours(self, name, pin, week):
+        #clears screen
         for widget in self.root.winfo_children():
             widget.destroy()
 
+        #sql query to get selected employees hour
         self.cursor = self.dbConnection.cursor()
-        self.cursor.execute("SELECT date, clock_in, clock_out FROM time WHERE employee_pin=" + str(pin))
-        
+        selectEmployee = "SELECT * FROM time WHERE employee_pin=%s"
+        self.cursor.execute(selectEmployee, (str(pin),))
         result = self.cursor.fetchall()
 
-        label = tk.Label(self.root, text="Weekly Report - " + name, font=("Cooper Black", 18), justify="center")
-        label.pack(padx=20, pady=5)
+        #gets the most record with the most recent date and the days of the week associated with it
+        today = datetime.now().date()
+        weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        diff = 100
 
-        print(result)     
+        #gives most recent punch out of the results
+        for r in result:
+            dateTest = r[1] - today
+            testDifference = abs(dateTest.days)
+            if testDifference < diff:
+                mostRecent = r[1]
+                diff = testDifference
+
+        #fills date list to fill in screen
+        i = 0
+        j = 0
+        while True:
+            dateTest = (mostRecent - timedelta(days=i)).weekday()
+            if weekdays[dateTest] == "Sunday":
+                dateArr = []
+
+                sunday = mostRecent - timedelta(days=i)
+
+                #these two ifs come into play after either the next or previous week buttons have been pressed
+                #if week is negative then advance to the next week
+                if week > 0:
+                    #makes previous week button load instead
+                    sunday = sunday - timedelta(days=(week * 7))
+                    while j < 7:
+                        dateArr.append(sunday + timedelta(days=j))
+                        j += 1
+                    break
+                    
+                #if week is negative then advance to the next week
+                if week < 0:
+                    sunday = sunday - timedelta(days=(week * 7))
+                    while j < 7:
+                        dateArr.append(sunday + timedelta(days=j))
+                        j += 1
+                    break
+                
+                while j < 7:
+                    dateArr.append(sunday + timedelta(days=j))
+                    j += 1
+
+                break
+            i += 1
+
+
+        #fills clock_in list to fill in screen by searching for a record with a date that matches date array, formats it, then appends to clock in list
+        inArr = []
+        for x in dateArr:
+            flag = False
+
+            for record in result:
+                dateCombine = datetime.combine(x, time(hour=record[2].hour, minute=record[2].minute, second=record[2].second))
+
+                if dateCombine == record[2]:
+                    formattedTime = "{}:{:02d}:{:02d}".format(record[2].hour, record[2].minute, record[2].second)
+                    inArr.append(formattedTime)
+                    flag = True
+                    break
+
+            #if a datetime doesnt match with a record, N/A
+            if not flag:
+                inArr.append("N/A")
+                
+        #fills clock_out list to fill in screen by searching for a record with a date that matches date array, formats it, then appends to clock out list
+        outArr = []
+        for x in dateArr:
+            flag = False
+            for record in result:
+                dateCombine = datetime.combine(x, time(hour=record[3].hour, minute=record[3].minute, second=record[3].second))
+
+                if dateCombine == record[3]:
+                    formattedTime = "{}:{:02d}:{:02d}".format(record[3].hour, record[3].minute, record[3].second)
+                    outArr.append(formattedTime)
+                    flag = True
+                    break
+
+            #if a datetime doesnt match with a record, N/A
+            if not flag:
+                outArr.append("N/A")
+        
+        #calculates total hours worked
+        i = 0
+        totalArr = []
+        totalHrs = 0
+        while i < len(inArr) and i < len(outArr):
+            if inArr[i] == "N/A" or outArr[i] == "N/A":
+                totalArr.append("N/A")
+                i += 1
+                continue
+            
+            clockIn = inArr[i] 
+            clockOut = outArr[i]
+
+            hoursWorked = datetime.strptime(clockOut, "%H:%M:%S") - datetime.strptime(clockIn, "%H:%M:%S")
+            
+            hr = hoursWorked.seconds // 3600
+            min = (hoursWorked.seconds // 60) % 60
+            sec = hoursWorked.seconds % 60
+
+            intHrs = hr + (min/60) + (sec/3600)
+            calculatedHours = "{}:{:02d}:{:02d}".format(hr, min, sec)
+
+            totalArr.append(calculatedHours)
+
+            #variable used for totals row
+            totalHrs = float(totalHrs) + intHrs
+            totalHrs = "{:.2f}".format(totalHrs)
+            i += 1
+
+        #formats date list
+        i = 0
+        for date in dateArr:
+            formattedDate = "{}/{}/{}".format(date.month, date.day, date.year)
+            dateArr[i] = formattedDate
+            i += 1
+
+        #draws screen
+        title = tk.Label(self.root, text="Weekly Report - " + name, font=("Cooper Black", 24), justify="center")
+        title.pack(padx=20, pady=5)
+
+        weekSelectFrame = tk.Frame(self.root, width=200, height=100)
+        weekSelectFrame.rowconfigure(0, weight=1)
+        weekSelectFrame.columnconfigure(0, weight=1)
+        weekSelectFrame.columnconfigure(1, weight=1)
+        weekSelectFrame.columnconfigure(2, weight=1)
+        weekSelectFrame.pack(padx=20, pady=20)
+        
+        prevBtn = ttk.Button(weekSelectFrame, text="Previous Week", command=lambda: self.prev_week(name, pin, week))
+        prevBtn.grid(row=0, column=0, sticky=tk.NSEW)
+
+        backBtn = ttk.Button(weekSelectFrame, text="Back to Admin", command=self.admin_page)
+        backBtn.grid(row=0, column=1, sticky=tk.NSEW)
+
+        nextBtn = ttk.Button(weekSelectFrame, text="Next Week", command=lambda: self.next_week(name, pin, week))
+        nextBtn.grid(row=0, column=2, sticky=tk.NSEW)
+    
+        #creates the frame the data goes in
+        hourFrame = tk.Frame(self.root, width=200, height=500)
+        hourFrame.columnconfigure(0, weight=1)
+        hourFrame.columnconfigure(1, weight=1)
+        hourFrame.columnconfigure(2, weight=1)
+        hourFrame.columnconfigure(3, weight=1)
+        hourFrame.columnconfigure(4, weight=1)
+        hourFrame.columnconfigure(5, weight=1)
+        hourFrame.columnconfigure(6, weight=1)
+        hourFrame.columnconfigure(7, weight=1)
+        hourFrame.rowconfigure(0, weight=1)
+        hourFrame.rowconfigure(1, weight=1)
+        hourFrame.rowconfigure(2, weight=1)
+        hourFrame.rowconfigure(3, weight=1)
+        hourFrame.rowconfigure(4, weight=1)
+        hourFrame.rowconfigure(5, weight=1)
+        hourFrame.rowconfigure(6, weight=1)
+        hourFrame.rowconfigure(7, weight=1)
+        hourFrame.rowconfigure(8, weight=1)
+        hourFrame.rowconfigure(9, weight=1)
+        hourFrame.pack(padx=20, pady=30)
+
+        #draws column headers
+        dayHeader = tk.Label(hourFrame, text="Weekday", font=("Cooper Black", 16), justify="center", padx=10)
+        dayHeader.grid(row=0, column=0, sticky=tk.NSEW)
+
+        line1 = tk.Frame(hourFrame, width=5, bg="black")
+        line1.grid(row=0, column=1, sticky=tk.NS)
+
+        dateHeader = tk.Label(hourFrame, text="Date", font=("Cooper Black", 16), justify="center", padx=10)
+        dateHeader.grid(row=0, column=2, sticky=tk.NSEW)
+
+        line2 = tk.Frame(hourFrame, width=5, bg="black")
+        line2.grid(row=0, column=3, sticky=tk.NS)
+        
+        inHeader = tk.Label(hourFrame, text="Clock In", font=("Cooper Black", 16), justify="center", padx=10)
+        inHeader.grid(row=0, column=4, sticky=tk.NSEW)
+
+        line3 = tk.Frame(hourFrame, width=5, bg="black")
+        line3.grid(row=0, column=5, sticky=tk.NS)
+
+        outHeader = tk.Label(hourFrame, text="Clock Out", font=("Cooper Black", 16), justify="center", padx=10)
+        outHeader.grid(row=0, column=6, sticky=tk.NSEW)
+
+        line4 = tk.Frame(hourFrame, width=5, bg="black")
+        line4.grid(row=0, column=7, sticky=tk.NS)
+
+        totalHeader = tk.Label(hourFrame, text="Total", font=("Cooper Black", 16), justify="center", padx=10)
+        totalHeader.grid(row=0, column=8, sticky=tk.NSEW)
+
+        #draws line between headers and data
+        k = 0
+        while k < 9:
+            separatorLine = tk.Frame(hourFrame, height=5, bg="black")
+            separatorLine.grid(row=1, column=k, sticky=tk.EW)
+            k += 1
+        
+
+        #draws sunday row
+        dayLabel = tk.Label(hourFrame, text="Sunday", font=("Cooper Black", 14), justify="center", padx=10, pady=6)
+        dayLabel.grid(row=2, column=0, sticky=tk.NSEW)
+
+        line5 = tk.Frame(hourFrame, width=5, bg="black")
+        line5.grid(row=2, column=1, sticky=tk.NS)
+
+        dateLabel = tk.Label(hourFrame, text=dateArr[0], font=("Cooper Black", 14), justify="center", padx=10, pady=6)
+        dateLabel.grid(row=2, column=2, sticky=tk.NSEW)
+
+        line6 = tk.Frame(hourFrame, width=5, bg="black")
+        line6.grid(row=2, column=3, sticky=tk.NS)
+        
+
+        inLabel = tk.Label(hourFrame, text=inArr[0], font=("Cooper Black", 14), justify="center", padx=10, pady=6)
+        inLabel.grid(row=2, column=4, sticky=tk.NSEW)
+
+        line7 = tk.Frame(hourFrame, width=5, bg="black")
+        line7.grid(row=2, column=5, sticky=tk.NS)
+
+        outLabel = tk.Label(hourFrame, text=outArr[0], font=("Cooper Black", 14), justify="center", padx=10, pady=6)
+        outLabel.grid(row=2, column=6, sticky=tk.NSEW)
+
+        line8 = tk.Frame(hourFrame, width=5, bg="black")
+        line8.grid(row=2, column=7, sticky=tk.NS)
+
+        totalLabel = tk.Label(hourFrame, text=totalArr[0], font=("Cooper Black", 14), justify="center", padx=10, pady=6)
+        totalLabel.grid(row=2, column=8, sticky=tk.NSEW)
+
+        #sets the data in the various columns
+        i = 3
+        for day in weekdays:
+            if day == "Sunday":
+                break
+
+            dayLabel = tk.Label(hourFrame, text=day, font=("Cooper Black", 14), justify="center", padx=10, pady=6)
+            dayLabel.grid(row=i, column=0, sticky=tk.NSEW)
+
+            line1 = tk.Frame(hourFrame, width=5, bg="black")
+            line1.grid(row=i, column=1, sticky=tk.NS)
+
+            dateLabel = tk.Label(hourFrame, text=dateArr[i-2], font=("Cooper Black", 14), justify="center", padx=10, pady=6)
+            dateLabel.grid(row=i, column=2, sticky=tk.NSEW)
+
+            line2 = tk.Frame(hourFrame, width=5, bg="black")
+            line2.grid(row=i, column=3, sticky=tk.NS)
+
+            inLabel = tk.Label(hourFrame, text=inArr[i-2], font=("Cooper Black", 14), justify="center", padx=10, pady=6)
+            inLabel.grid(row=i, column=4, sticky=tk.NSEW)
+
+            line3 = tk.Frame(hourFrame, width=5, bg="black")
+            line3.grid(row=i, column=5, sticky=tk.NS)
+
+            outLabel = tk.Label(hourFrame, text=outArr[i-2], font=("Cooper Black", 14), justify="center", padx=10, pady=6)
+            outLabel.grid(row=i, column=6, sticky=tk.NSEW)
+
+            line4 = tk.Frame(hourFrame, width=5, bg="black")
+            line4.grid(row=i, column=7, sticky=tk.NS)
+
+            totalLabel = tk.Label(hourFrame, text=totalArr[i-2], font=("Cooper Black", 14), justify="center", padx=10, pady=6)
+            totalLabel.grid(row=i, column=8, sticky=tk.NSEW)
+
+            i += 1
+
+        #draws total row
+        hoursLabel = tk.Label(hourFrame, text="Total Hours: " + str(totalHrs), font=("Cooper Black", 24), justify="center", padx=10, pady=30)
+        hoursLabel.grid(row=9, column=0, columnspan=9, sticky=tk.NSEW)
+            
+    #sets week variable so date array knows what dates to use
+    def prev_week(self, name, pin, week):
+        name = name
+        pin = pin
+        week += 1
+        self.show_hours(name, pin, week)
+
+    #sets week variable so date array knows what dates to use
+    def next_week(self, name, pin, week):
+        name = name
+        pin = pin
+        week -= 1
+        self.show_hours(name, pin, week)
 
 
     def create_user(self):
@@ -122,7 +405,6 @@ class AdminWindow:
         else:
             admin = 0
         nameArr = name.split(" ")
-        print(nameArr)
         firstName = nameArr[0]
         lastName = nameArr[1]
         pin = self.pinEntry.get()

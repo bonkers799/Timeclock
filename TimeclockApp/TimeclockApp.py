@@ -42,7 +42,7 @@ class TimeclockApp():
         #for later styling possibilities
         self.sty = ttk.Style()
         self.sty.configure("TButton", font=("Cooper Black", 15), padding=(25,10))
-
+        
 
         btn1 = ttk.Button(btnframe, text="1", command=lambda: self.add_input(btn1))
         btn1.grid(row=0, column=0, sticky=tk.NSEW)
@@ -112,7 +112,7 @@ class TimeclockApp():
             for x in result:
                 userPin = x
                 if int(pin) == x[-1]:
-                    self.cursor.execute("SELECT admin FROM employees WHERE employee_pin = " + str(x[-1]))
+                    self.cursor.execute("SELECT admin FROM employees WHERE employee_pin= " + str(x[-1]))
                     pinResult = self.cursor.fetchall()
 
                     for y in pinResult:
