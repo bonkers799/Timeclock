@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, time
 class AdminWindow:
     def __init__(self, root):
         self.root = root
+        self.startDate = None
+        self.endDate = None
         self.admin_page()
 
     def admin_page(self):
@@ -56,7 +58,152 @@ class AdminWindow:
         deleteUser.grid(row=1, column=4, columnspan=2, sticky=tk.NSEW, padx=15, ipadx=5)
     
     def summary_report(self):
-        print("Get Summary Report")
+        #clears screen
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+        self.cursor = self.dbConnection.cursor()
+        self.cursor.execute("SELECT * FROM time")
+        result = self.cursor.fetchall()
+
+        today = datetime.now().date()
+
+        #fills dateArr with dates that will be displayed from the most recent sunday with data to the following saturday
+        if self.startDate is None:
+            i = 0
+            dateArr = []
+            for r in result:
+                if r[1].weekday()==6 and (today - r[1]) < timedelta(days=8):
+                    sunday = today - r[1]
+                    while i < 7:
+                        dateArr.append(sunday - timedelta(days=i))
+                        i += 1
+                    break
+            self.startDate = (today - dateArr[0])
+            self.endDate = (today - dateArr[6])
+        
+        #calculates hours worked if the record's date is within the start and end date
+        totalHrs = {}
+        for record in result:
+            employee_pin, date, clockIn, clockOut = record
+            
+            if self.startDate <= date <= self.endDate:
+                if clockIn and clockOut:
+            
+                    totalHrsWorked = clockOut - clockIn
+                    totalHrs.setdefault(employee_pin, 0)
+                    totalHrs[employee_pin] += totalHrsWorked.total_seconds() / 3600
+
+        #query to get all the names of the employees
+        self.cursor.execute("SELECT employee_pin, first_name, last_name FROM employees WHERE first_name IS NOT NULL AND last_name IS NOT NULL AND admin=0")
+        result = self.cursor.fetchall()
+
+        #fills a dictionary with every employees name and hours worked
+        nameDict = {}
+        i = 0
+        for key, value in totalHrs.items():
+            for name in result:
+                if key == name[0]:
+                    
+                    nameDict[(name[1] + " " + name[2])] = value
+
+        #starts drawing screen
+        title = tk.Label(self.root, text="Weekly Summary", font=("Cooper Black", 24), justify="center")
+        title.pack(padx=20, pady=5)
+
+        #frame and buttons for navigation
+        weekSelectFrame = tk.Frame(self.root, width=200, height=100)
+        weekSelectFrame.rowconfigure(0, weight=1)
+        weekSelectFrame.columnconfigure(0, weight=1)
+        weekSelectFrame.columnconfigure(1, weight=1)
+        weekSelectFrame.columnconfigure(2, weight=1)
+        weekSelectFrame.pack(padx=20, pady=20)
+        
+        prevSummary = ttk.Button(weekSelectFrame, text="Previous Summary", style="AdminPage.TButton", command=lambda: self.prev_sum(self.startDate, self.endDate))
+        prevSummary.grid(row=0, column=0, sticky=tk.NSEW)
+
+        backBtn = ttk.Button(weekSelectFrame, text="Back to Admin", style="AdminPage.TButton", command=self.admin_page)
+        backBtn.grid(row=0, column=1, sticky=tk.NSEW)
+
+        nextSummary = ttk.Button(weekSelectFrame, text="Next Summary", style="AdminPage.TButton", command=lambda: self.next_sum(self.startDate, self.endDate))
+        nextSummary.grid(row=0, column=2, sticky=tk.NSEW)
+
+        weekHeader = tk.Label(self.root, text="Week of: {} - {}".format(self.startDate, self.endDate), font=("Cooper Black", 16), justify="center", padx=10)
+        weekHeader.pack(padx=20, pady=3)
+
+
+        #creates a scrollbar, doesnt work well
+        scrollbar = ttk.Scrollbar(self.root, orient="vertical")
+        scrollbar.pack(side=tk.RIGHT, fill="y", expand=False)
+        self.scrollCanvas = tk.Canvas(self.root, width=500, height=300,  yscrollcommand=scrollbar.set)
+        self.scrollCanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.scrollCanvas.yview)
+        
+        
+        self.dataFrame = ttk.Frame(self.scrollCanvas)
+        #self.dataFrame.bind('<Configure>', self.configure_dataFrame)
+        #self.dataFrame.bind('<Configure>', self.configure_scrollCanvas)
+        self.dataFrameId = self.scrollCanvas.create_window((155,0), window=self.dataFrame, anchor="nw")
+
+
+        self.dataFrame.columnconfigure(0, weight=1)
+        self.dataFrame.columnconfigure(1, weight=1)
+        self.dataFrame.columnconfigure(2, weight=1)
+        self.dataFrame.rowconfigure(0, weight=1)
+        self.dataFrame.rowconfigure(1, weight=1)
+
+        empHeader = tk.Label(self.dataFrame, text="Weekday", font=("Cooper Black", 16), justify="center", padx=10)
+        empHeader.grid(row=0, column=0, sticky=tk.NSEW)
+
+        hrHeader = tk.Label(self.dataFrame, text="Hours Worked", font=("Cooper Black", 16), justify="center", padx=10)
+        hrHeader.grid(row=0, column=2, sticky=tk.EW)
+
+        empLine = tk.Frame(self.dataFrame, width=5, bg="black", height=5)
+        empLine.grid(row=1, column=0, columnspan=4, sticky=tk.EW)
+        
+        #loops through all the items in the dictionary and draws its contents on the screen
+        i = 2
+        for name, value in nameDict.items():
+            if value.is_integer():
+                value = int(value)
+            else:
+                value = round(value, 2)
+
+            self.dataFrame.rowconfigure(i, weight=1)
+
+            employeeLabel = tk.Label(self.dataFrame, text=name, font=("Cooper Black", 16), justify="center", padx=10)
+            employeeLabel.grid(row=i, column=0, sticky=tk.NSEW)
+
+            lineRight = tk.Frame(self.dataFrame, width=3, bg="black")
+            lineRight.grid(row=i, column=1, sticky=tk.NSEW)
+
+            valueLabel = tk.Label(self.dataFrame, text=str(value) + " Hours", font=("Cooper Black", 16), justify="right", padx=10)
+            valueLabel.grid(row=i, column=2, sticky=tk.E)
+
+            i += 1
+
+
+    #allows for changing of the date range
+    def next_sum(self, start, end):
+        self.startDate = start + timedelta(days=7)
+        self.endDate = end + timedelta(days=7)
+        self.summary_report()
+
+    #allows for changing of the date range
+    def prev_sum(self, start, end):
+        self.startDate = start - timedelta(days=7)
+        self.endDate = end - timedelta(days=7)
+        self.summary_report()
+    
+    #used for scrolling
+    def configure_dataFrame(self):
+        size = (self.dataFrame.winfo_reqwidth(), self.dataFrame.winfo_reqheight())
+        self.scrollCanvas.config(scrollregion=(0, 0, size[0], size[1]))
+        if self.dataFrame.winfo_reqwidth() != self.scrollCanvas.winfo_width():
+            self.scrollCanvas.config(width=self.dataFrame.winfo_reqwidth())
+
+    def configure_scrollCanvas(self):
+        self.scrollCanvas.config(scrollregion=self.scrollCanvas.bbox("all"))
 
     #method used when the user clicks get weekly hours
     def weekly_hours(self):
@@ -87,7 +234,6 @@ class AdminWindow:
                 return
 
 
-    #will add onto this, incomplete
     def show_hours(self, name, pin, week):
         #clears screen
         for widget in self.root.winfo_children():
@@ -364,7 +510,7 @@ class AdminWindow:
         #draws total row
         hoursLabel = tk.Label(hourFrame, text="Total Hours: " + str(totalHrs), font=("Cooper Black", 24), justify="center", padx=10, pady=30)
         hoursLabel.grid(row=9, column=0, columnspan=9, sticky=tk.NSEW)
-            
+        
     #sets week variable so date array knows what dates to use
     def prev_week(self, name, pin, week):
         name = name
