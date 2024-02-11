@@ -65,6 +65,7 @@ class UserWindow:
             query = "INSERT INTO time (employee_pin, date, clock_in, clock_out) VALUES (%s, %s, %s, %s);"
             self.cursor.execute(query, (int(pinFinal), date, clockIn, clockOutNull))
             self.dbConnection.commit()
+            print("Clocked in successfully")
 
 
     #method used when the user clicks clock out
@@ -87,19 +88,26 @@ class UserWindow:
         self.cursor.execute(fetchPin, (int(pinFinal),))
         invalidPin = self.cursor.fetchone()
 
+
         #ensures there is an existing pin as well as whether or not there is a record that has been started already (clocked in but not out yet)
-        checkExistingRecordQuery = "SELECT * FROM time WHERE employee_pin IS NOT NULL AND date IS NOT NULL;"
         if invalidPin:
+            checkExistingRecordQuery = "SELECT * FROM time WHERE employee_pin IS NOT NULL AND date IS NOT NULL;"
             self.cursor.execute(checkExistingRecordQuery)
             recordExists = self.cursor.fetchone()
-
+            cursorDump = self.cursor.fetchall()
             if recordExists:
+
                 query = "UPDATE time SET clock_out=%s WHERE employee_pin IS NOT NULL AND date IS NOT NULL AND clock_in IS NOT NULL AND clock_out IS NULL;"
-                print(query)
                 self.cursor.execute(query, (clockOut,))
                 self.dbConnection.commit()
+                print("Clocked out successfully")
             else:
                 print("Record does not exist")
             
         else:
             print("Failed to clock out")
+        
+        
+        self.cursor.close()
+            
+        self.cursor = self.dbConnection.cursor()
